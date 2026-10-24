@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --navy: #12213F;
+  --blue: #0A66C2;
+  --sky: #10AEE6;
+  --cyan: #1DE0FF;
+  
+  --bg: #F7FAFC;
+  --card: #FFFFFF;
+  --card-hover: #F1F5F9;
+  --border: #E3EAF2;
+  --text: #12213F;
+  --text-muted: #64748B;
+  --primary: #0A66C2;
+  --accent: #10AEE6;
+  --sidebar-bg: #12213F;
+  --sidebar-text: #E2E8F0;
+  --sidebar-active: #0A66C2;
+}
+
+.dark {
+  --navy: #12213F;
+  --blue: #10AEE6;
+  --sky: #1DE0FF;
+  --cyan: #1DE0FF;
+
+  --bg: #0B1424;
+  --card: #12213F;
+  --card-hover: #172B52;
+  --border: #1F3357;
+  --text: #E8F0FA;
+  --text-muted: #94A3B8;
+  --primary: #10AEE6;
+  --accent: #1DE0FF;
+  --sidebar-bg: #0B1424;
+  --sidebar-text: #CBD5E1;
+  --sidebar-active: #0A66C2;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-raleway), system-ui, -apple-system, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  min-height: 100vh;
+}
+
+/* Glassmorphism & SaaS Styles */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.dark .glass-panel {
+  background: rgba(18, 33, 63, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, #0A66C2 0%, #10AEE6 50%, #1DE0FF 100%);
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, #12213F 0%, #0A66C2 60%, #10AEE6 100%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #0A66C2 0%, #10AEE6 50%, #1DE0FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* Animations */
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
