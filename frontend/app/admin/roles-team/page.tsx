@@ -99,7 +99,7 @@ export default function RolesAndTeamPage() {
     newDesignation: '',
     salary: '',
     currency: 'USD',
-    joinDate: new Date().toISOString().split('T')[0],
+    joinDate: '',
     password: '',
     mustChangePassword: true,
   });
@@ -156,6 +156,10 @@ export default function RolesAndTeamPage() {
   useEffect(() => {
     const user = getStoredUser();
     setCurrentUser(user);
+    setMemberForm((prev) => ({
+      ...prev,
+      joinDate: prev.joinDate || new Date().toISOString().split('T')[0],
+    }));
     fetchRoles();
     fetchTeamData();
   }, []);
@@ -356,7 +360,7 @@ export default function RolesAndTeamPage() {
         department: finalDept || null,
         designation: finalDesig || null,
         salary: memberForm.salary ? Number(memberForm.salary) : null,
-        joinDate: memberForm.joinDate,
+        joinDate: memberForm.joinDate || new Date().toISOString().split('T')[0],
         password: memberForm.password || undefined,
         mustChangePassword: memberForm.mustChangePassword,
       };
