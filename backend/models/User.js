@@ -38,15 +38,25 @@ const userSchema = new mongoose.Schema(
     },
     department: {
       type: String,
-      default: 'General',
+      default: null,
     },
     designation: {
       type: String,
-      default: 'Staff',
+      default: null,
     },
     salary: {
       type: Number,
-      default: 60000,
+      default: null,
+    },
+    companyId: {
+      type: String,
+      default: 'default-company',
+      index: true,
+    },
+    customRoleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null,
     },
     phone: {
       type: String,
@@ -64,6 +74,18 @@ const userSchema = new mongoose.Schema(
       casual: { type: Number, default: 10 },
       sick: { type: Number, default: 10 },
       annual: { type: Number, default: 14 },
+    },
+    faceDescriptors: {
+      type: [[Number]],
+      default: [],
+    },
+    faceEnrolledAt: {
+      type: Date,
+      default: null,
+    },
+    faceConsentGiven: {
+      type: Boolean,
+      default: false,
     },
     mustChangePassword: {
       type: Boolean,

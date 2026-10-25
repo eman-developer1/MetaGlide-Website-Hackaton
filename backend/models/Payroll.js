@@ -9,8 +9,8 @@ const payrollRecordSchema = new mongoose.Schema({
   employeeId: { type: String, default: '' },
   name: { type: String, required: true },
   email: { type: String, required: true },
-  department: { type: String, default: 'General' },
-  designation: { type: String, default: 'Staff' },
+  department: { type: String, default: null },
+  designation: { type: String, default: null },
   basicSalary: { type: Number, required: true, default: 0 },
   allowances: {
     housing: { type: Number, default: 0 },
@@ -47,6 +47,11 @@ const payrollSchema = new mongoose.Schema(
       type: String, // e.g. "October 2026 Payroll"
       required: true,
     },
+    companyId: {
+      type: String,
+      default: 'default-company',
+      index: true,
+    },
     status: {
       type: String,
       enum: ['Draft', 'Finalized'],
@@ -73,6 +78,6 @@ const payrollSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-payrollSchema.index({ month: 1, year: 1 }, { unique: true });
+payrollSchema.index({ month: 1, year: 1, companyId: 1 });
 
 module.exports = mongoose.model('Payroll', payrollSchema);

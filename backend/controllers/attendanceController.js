@@ -9,6 +9,218 @@ const getTodayDateStr = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Euclidean distance between two 128D face descriptor vectors
+const euclideanDistance = (arr1, arr2) => {
+  if (!arr1 || !arr2 || arr1.length !== arr2.length) return 999;
+  let sum = 0;
+  for (let i = 0; i < arr1.length; i++) {
+    const diff = arr1[i] - arr2[i];
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum);
+};
+
+// Haversine distance in meters
+const getHaversineDistanceMeters = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3;
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
+
+// @desc    Face Biometric Check In
+// @route   POST /api/attendance/face-check-in
+// @access  Private (All Roles)
+const faceCheckIn = async (req, res) => {
+  try {
+    const { descriptor, livenessVerified, location, notes } = req.body;
+    const todayStr = getTodayDateStr();
+
+    // 1. Check existing check-in for today
+    const existing = await dataStore.findAttendanceToday(req.user.id, todayStr);
+    if (existing && existing.checkIn) {
+      return res.status(409).json({
+        success: false,
+        message: `You have already checked in today at ${new Date(existing.checkIn).toLocaleTimeString()}! Duplicate check-in is not allowed.`,
+        attendance: existing,
+      });
+    }
+
+    // 2. Retrieve user and verify face enrollment
+    const user = await dataStore.findUserById(req.user.id);
+    if (!user || !user.faceDescriptors || user.faceDescriptors.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No face biometric enrolled for your account. Please contact your Admin/HR or enroll via your profile first.',
+      });
+    }
+
+    // 3. Retrieve settings
+    const settings = await dataStore.getSettings();
+    const faceSettings = settings.faceAttendance || {
+      enabled: true,
+      threshold: 0.5,
+      requireLiveness: true,
+      requireLocation: false,
+      officeLocation: { lat: 31.5204, lng: 74.3587 },
+      radiusMeters: 500,
+    };
+
+    if (faceSettings.enabled === false) {
+      return res.status(400).json({
+        success: false,
+        message: 'Face check-in is currently disabled by company policy.',
+      });
+    }
+
+    // 4. Liveness check verification
+    if (faceSettings.requireLiveness && !livenessVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Liveness verification failed. Please ensure you blink or move naturally in front of the camera.',
+      });
+    }
+
+    // 5. Geo-fence location check
+    if (faceSettings.requireLocation) {
+      if (!location || location.lat === undefined || location.lng === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: 'Location verification is required for attendance. Please enable GPS permissions.',
+        });
+      }
+
+      if (location.accuracy && location.accuracy > 100) {
+        return res.status(400).json({
+          success: false,
+          message: `GPS accuracy too low (${Math.round(location.accuracy)}m > 100m threshold). Please move to an open area with better satellite coverage.`,
+        });
+      }
+
+      const dist = getHaversineDistanceMeters(
+        location.lat,
+        location.lng,
+        faceSettings.officeLocation.lat,
+        faceSettings.officeLocation.lng
+      );
+
+      if (dist > faceSettings.radiusMeters) {
+        return res.status(400).json({
+          success: false,
+          message: `Outside permitted office perimeter (${Math.round(dist)}m away, allowed radius: ${faceSettings.radiusMeters}m).`,
+        });
+      }
+    }
+
+    // 6. Biometric descriptor matching (Euclidean distance)
+    if (!descriptor || !Array.isArray(descriptor)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid face scan descriptor is missing.',
+      });
+    }
+
+    let minDistance = 999;
+    for (const enrolledDesc of user.faceDescriptors) {
+      const dist = euclideanDistance(descriptor, enrolledDesc);
+      if (dist < minDistance) minDistance = dist;
+    }
+
+    const threshold = faceSettings.threshold || 0.5;
+    const matchPassed = minDistance <= threshold;
+
+    if (!matchPassed) {
+      const currentSuspicious = (existing?.suspiciousAttempts || 0) + 1;
+      await dataStore.createOrUpdateAttendance({
+        user: req.user.id,
+        userName: req.user.name,
+        userEmail: req.user.email,
+        department: req.user.department,
+        companyId: req.user.companyId || 'default-company',
+        date: todayStr,
+        suspiciousAttempts: currentSuspicious,
+      });
+
+      await dataStore.logAudit({
+        userId: req.user.id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: 'FACE_SCAN_REJECTED',
+        module: 'Attendance',
+        details: `Face scan rejected for ${req.user.name}. Distance: ${minDistance.toFixed(3)} (threshold: ${threshold}). Attempt #${currentSuspicious}`,
+        ipAddress: req.ip,
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: `Face match failed (confidence distance: ${minDistance.toFixed(2)}, threshold: ${threshold}). ${
+          currentSuspicious >= 3 ? 'Multiple failed attempts recorded. You can request an HR attendance correction.' : 'Please try again with clear lighting.'
+        }`,
+        suspiciousAttempts: currentSuspicious,
+        matchScore: minDistance,
+      });
+    }
+
+    // 7. Calculate status (Present / Late)
+    const now = new Date();
+    const lateThreshold = settings.workHours?.lateThresholdTime || '09:30';
+    const [thHours, thMins] = lateThreshold.split(':').map(Number);
+    const checkInHours = now.getHours();
+    const checkInMins = now.getMinutes();
+
+    let status = 'Present';
+    if (checkInHours > thHours || (checkInHours === thHours && checkInMins > thMins)) {
+      status = 'Late';
+    }
+
+    const record = await dataStore.createOrUpdateAttendance({
+      user: req.user.id,
+      userName: req.user.name,
+      userEmail: req.user.email,
+      department: req.user.department,
+      companyId: req.user.companyId || 'default-company',
+      date: todayStr,
+      checkIn: now,
+      status,
+      workHours: 0,
+      method: 'face',
+      matchScore: Math.round(minDistance * 1000) / 1000,
+      location: location || null,
+      livenessVerified: Boolean(livenessVerified),
+      notes: notes || 'Verified via Face Biometric Scan',
+    });
+
+    await dataStore.logAudit({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'CHECK_IN_FACE',
+      module: 'Attendance',
+      details: `Face biometric check-in verified at ${now.toLocaleTimeString()} (${status}) with match score ${minDistance.toFixed(3)}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Identity verified! Checked in successfully as ${status}.`,
+      attendance: record,
+      matchScore: minDistance,
+    });
+  } catch (error) {
+    console.error('[FaceCheckIn Error]:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Server error during face check-in' });
+  }
+};
+
+
 // @desc    Check In for today
 // @route   POST /api/attendance/check-in
 // @access  Private (All Roles)
@@ -400,6 +612,7 @@ const reviewCorrection = async (req, res) => {
 
 module.exports = {
   checkIn,
+  faceCheckIn,
   checkOut,
   getTodayStatus,
   getMyAttendance,
@@ -408,3 +621,4 @@ module.exports = {
   getPendingCorrections,
   reviewCorrection,
 };
+

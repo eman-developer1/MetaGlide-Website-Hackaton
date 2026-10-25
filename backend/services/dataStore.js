@@ -8,10 +8,12 @@ const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const AILog = require('../models/AILog');
 const Settings = require('../models/Settings');
+const Role = require('../models/Role');
 
 // Global In-Memory Stores for Offline Resilience
 const memoryStore = {
   users: [],
+  roles: [],
   attendance: [],
   leaves: [],
   payrolls: [],
@@ -456,6 +458,143 @@ const dataStore = {
     }
     memoryStore.settings = { ...memoryStore.settings, ...updateData };
     return memoryStore.settings;
+  },
+
+  // ================= ROLES =================
+  getDefaultRoles(companyId = 'default-company') {
+    return [
+      {
+        name: 'Admin',
+        description: 'Full administrative access to all modules and company settings',
+        companyId,
+        isSystem: true,
+        permissions: [
+          { module: 'employees', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'attendance', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'leave', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'payroll', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'roles', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'settings', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+        ],
+      },
+      {
+        name: 'HR',
+        description: 'Human Resources management: employees, attendance, leave, and payroll',
+        companyId,
+        isSystem: true,
+        permissions: [
+          { module: 'employees', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'attendance', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'leave', actions: { view: true, create: true, edit: true, delete: true, approve: true, export: true }, scope: 'Company' },
+          { module: 'payroll', actions: { view: true, create: true, edit: true, delete: false, approve: true, export: true }, scope: 'Company' },
+          { module: 'roles', actions: { view: false, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Company' },
+          { module: 'settings', actions: { view: false, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Company' },
+        ],
+      },
+      {
+        name: 'Employee',
+        description: 'Standard employee portal with personal attendance, leave, and payslips',
+        companyId,
+        isSystem: true,
+        permissions: [
+          { module: 'employees', actions: { view: true, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+          { module: 'attendance', actions: { view: true, create: true, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+          { module: 'leave', actions: { view: true, create: true, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+          { module: 'payroll', actions: { view: true, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+          { module: 'roles', actions: { view: false, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+          { module: 'settings', actions: { view: false, create: false, edit: false, delete: false, approve: false, export: false }, scope: 'Own' },
+        ],
+      },
+    ];
+  },
+
+  async seedDefaultRoles(companyId = 'default-company') {
+    const defaults = this.getDefaultRoles(companyId);
+    if (isDBConnected()) {
+      for (const r of defaults) {
+        const exists = await Role.findOne({ name: r.name, companyId });
+        if (!exists) {
+          await Role.create(r);
+        }
+      }
+    } else {
+      for (const r of defaults) {
+        const exists = memoryStore.roles.find((item) => item.name === r.name && item.companyId === companyId);
+        if (!exists) {
+          memoryStore.roles.push({ _id: makeId('rol'), id: makeId('rol'), ...r, createdAt: new Date() });
+        }
+      }
+    }
+  },
+
+  async findRoles(companyId = 'default-company') {
+    await this.seedDefaultRoles(companyId);
+    if (isDBConnected()) {
+      return await Role.find({ companyId }).sort({ isSystem: -1, createdAt: 1 });
+    }
+    return memoryStore.roles.filter((r) => !r.companyId || r.companyId === companyId);
+  },
+
+  async findRoleById(id) {
+    if (!id) return null;
+    if (isDBConnected()) {
+      try {
+        return await Role.findById(id);
+      } catch (e) {}
+    }
+    return memoryStore.roles.find((r) => r._id?.toString() === id?.toString() || r.id?.toString() === id?.toString()) || null;
+  },
+
+  async findRoleByName(name, companyId = 'default-company') {
+    if (!name) return null;
+    if (isDBConnected()) {
+      return await Role.findOne({ name: new RegExp(`^${name}$`, 'i'), companyId });
+    }
+    return memoryStore.roles.find(
+      (r) => r.name?.toLowerCase() === name?.toLowerCase() && (!r.companyId || r.companyId === companyId)
+    ) || null;
+  },
+
+  async createRole(roleData) {
+    if (isDBConnected()) {
+      return await Role.create(roleData);
+    }
+    const newRole = {
+      _id: makeId('rol'),
+      id: makeId('rol'),
+      ...roleData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    memoryStore.roles.push(newRole);
+    return newRole;
+  },
+
+  async updateRole(id, updateData) {
+    if (isDBConnected()) {
+      try {
+        return await Role.findByIdAndUpdate(id, updateData, { new: true });
+      } catch (e) {}
+    }
+    const idx = memoryStore.roles.findIndex((r) => r._id?.toString() === id?.toString() || r.id?.toString() === id?.toString());
+    if (idx !== -1) {
+      memoryStore.roles[idx] = { ...memoryStore.roles[idx], ...updateData, updatedAt: new Date() };
+      return memoryStore.roles[idx];
+    }
+    return null;
+  },
+
+  async deleteRole(id) {
+    if (isDBConnected()) {
+      try {
+        return await Role.findByIdAndDelete(id);
+      } catch (e) {}
+    }
+    const idx = memoryStore.roles.findIndex((r) => r._id?.toString() === id?.toString() || r.id?.toString() === id?.toString());
+    if (idx !== -1) {
+      return memoryStore.roles.splice(idx, 1)[0];
+    }
+    return null;
   },
 };
 

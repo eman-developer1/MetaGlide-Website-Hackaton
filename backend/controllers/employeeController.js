@@ -158,45 +158,86 @@ const getEmployee360 = async (req, res) => {
 // @access  Private (Admin, HR)
 const createEmployee = async (req, res) => {
   try {
-    const { name, email, password, role, department, designation, salary, phone } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      customRoleId,
+      department,
+      designation,
+      salary,
+      phone,
+      joinDate,
+      status,
+      mustChangePassword,
+      faceDescriptors,
+    } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ success: false, message: 'Name and email are required' });
     }
 
-    const existing = await dataStore.findUserByEmail(email);
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await dataStore.findUserByEmail(normalizedEmail);
     if (existing) {
       return res.status(400).json({ success: false, message: 'Employee with this email already exists' });
     }
 
+    const finalPassword = password || 'MetaGlide@2026';
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password || 'MetaGlide@2026', salt);
+    const hashedPassword = await bcrypt.hash(finalPassword, salt);
 
     const allUsers = await dataStore.findUsers();
     const employeeId = `MG-${1000 + allUsers.length + 1}`;
 
     const newEmp = await dataStore.createUser({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || 'Employee',
-      status: 'Active',
-      department: department || 'General',
-      designation: designation || 'Staff',
-      salary: Number(salary) || 60000,
-      phone: phone || '',
+      customRoleId: customRoleId || null,
+      companyId: req.user?.companyId || 'default-company',
+      status: status || 'Active',
+      department: department?.trim() || null,
+      designation: designation?.trim() || null,
+      salary: salary !== undefined && salary !== null && salary !== '' ? Number(salary) : null,
+      phone: phone?.trim() || '',
       employeeId,
-      joinDate: new Date(),
+      joinDate: joinDate ? new Date(joinDate) : new Date(),
       leaveBalance: { casual: 10, sick: 10, annual: 14 },
+      mustChangePassword: Boolean(mustChangePassword),
+      faceDescriptors: Array.isArray(faceDescriptors) && faceDescriptors.length > 0 ? faceDescriptors : [],
+      faceEnrolledAt: Array.isArray(faceDescriptors) && faceDescriptors.length > 0 ? new Date() : null,
+      faceConsentGiven: Array.isArray(faceDescriptors) && faceDescriptors.length > 0,
     });
 
+    // If department or designation is new, save to settings for future autocomplete
+    if (department || designation) {
+      try {
+        const settings = await dataStore.getSettings();
+        const updateObj = {};
+        if (department && !settings.departments?.includes(department.trim())) {
+          updateObj.departments = [...(settings.departments || []), department.trim()];
+        }
+        if (designation && !settings.designations?.includes(designation.trim())) {
+          updateObj.designations = [...(settings.designations || []), designation.trim()];
+        }
+        if (Object.keys(updateObj).length > 0) {
+          await dataStore.updateSettings(updateObj);
+        }
+      } catch (e) {
+        console.warn('[Auto-add dept/desig warn]:', e.message);
+      }
+    }
+
     await dataStore.logAudit({
-      userId: req.user.id,
+      userId: req.user.id || req.user._id,
       userName: req.user.name,
       userRole: req.user.role,
       action: 'EMPLOYEE_CREATE',
       module: 'Employee',
-      details: `Created employee ${newEmp.name} (${newEmp.email})`,
+      details: `Created team member ${newEmp.name} (${newEmp.email}) as ${newEmp.role}`,
       ipAddress: req.ip,
     });
 
@@ -204,12 +245,14 @@ const createEmployee = async (req, res) => {
       success: true,
       message: 'Employee created successfully',
       employee: newEmp,
+      generatedPassword: !password ? finalPassword : null,
     });
   } catch (error) {
     console.error('[CreateEmployee Error]:', error);
     return res.status(500).json({ success: false, message: error.message || 'Server error' });
   }
 };
+
 
 // @desc    Update employee
 // @route   PUT /api/employees/:id
@@ -453,7 +496,99 @@ const commitImportCSV = async (req, res) => {
   }
 };
 
+// @desc    Enroll face biometric descriptors for employee
+// @route   POST /api/employees/:id/face-enroll
+// @access  Private (Admin, HR, or self)
+const enrollFace = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descriptors, consentGiven } = req.body;
+
+    if (!descriptors || !Array.isArray(descriptors) || descriptors.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid 128-dimensional face descriptor array is required',
+      });
+    }
+
+    if (!consentGiven) {
+      return res.status(400).json({
+        success: false,
+        message: 'Biometric consent must be accepted before storing face descriptors',
+      });
+    }
+
+    const emp = await dataStore.findUserById(id);
+    if (!emp) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    const updated = await dataStore.updateUser(id, {
+      faceDescriptors: descriptors,
+      faceEnrolledAt: new Date(),
+      faceConsentGiven: true,
+    });
+
+    await dataStore.logAudit({
+      userId: req.user.id || req.user._id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'FACE_ENROLL',
+      module: 'Attendance',
+      details: `Face descriptors enrolled for ${emp.name}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Face biometric data successfully enrolled for ${emp.name}`,
+      faceEnrolledAt: updated.faceEnrolledAt,
+    });
+  } catch (error) {
+    console.error('[EnrollFace Error]:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to enroll face' });
+  }
+};
+
+// @desc    Delete face biometric data
+// @route   DELETE /api/employees/:id/face-data
+// @access  Private (Admin, HR, or self)
+const deleteFaceData = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const emp = await dataStore.findUserById(id);
+    if (!emp) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    await dataStore.updateUser(id, {
+      faceDescriptors: [],
+      faceEnrolledAt: null,
+      faceConsentGiven: false,
+    });
+
+    await dataStore.logAudit({
+      userId: req.user.id || req.user._id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'FACE_DELETE',
+      module: 'Attendance',
+      details: `Face biometric data purged for ${emp.name}`,
+      ipAddress: req.ip,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Face biometric data cleared for ${emp.name}`,
+    });
+  } catch (error) {
+    console.error('[DeleteFaceData Error]:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to delete face data' });
+  }
+};
+
 module.exports = {
+  createEmployeeByAdmin: createEmployee,
   getEmployees,
   getEmployee360,
   createEmployee,
@@ -461,4 +596,7 @@ module.exports = {
   deleteEmployee,
   dryRunImportCSV,
   commitImportCSV,
+  enrollFace,
+  deleteFaceData,
 };
+

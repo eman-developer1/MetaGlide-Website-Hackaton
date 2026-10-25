@@ -9,7 +9,8 @@ const attendanceSchema = new mongoose.Schema(
     },
     userName: { type: String, default: '' },
     userEmail: { type: String, default: '' },
-    department: { type: String, default: 'General' },
+    department: { type: String, default: null },
+    companyId: { type: String, default: 'default-company', index: true },
     date: {
       type: String, // Format: YYYY-MM-DD
       required: true,
@@ -29,6 +30,28 @@ const attendanceSchema = new mongoose.Schema(
       default: 'Present',
     },
     workHours: {
+      type: Number,
+      default: 0,
+    },
+    method: {
+      type: String,
+      enum: ['face', 'manual', 'correction', 'system'],
+      default: 'manual',
+    },
+    matchScore: {
+      type: Number,
+      default: null, // Euclidean distance (lower is better, e.g. 0.32)
+    },
+    location: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+    },
+    livenessVerified: {
+      type: Boolean,
+      default: false,
+    },
+    suspiciousAttempts: {
       type: Number,
       default: 0,
     },
@@ -54,6 +77,6 @@ const attendanceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-attendanceSchema.index({ user: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ user: 1, date: 1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

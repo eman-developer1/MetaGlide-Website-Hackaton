@@ -35,6 +35,28 @@ const settingsSchema = new mongoose.Schema(
         'Finance',
       ],
     },
+    designations: {
+      type: [String],
+      default: [
+        'Software Engineer',
+        'Product Manager',
+        'HR Specialist',
+        'Marketing Lead',
+        'Account Executive',
+        'UI/UX Designer',
+      ],
+    },
+    faceAttendance: {
+      enabled: { type: Boolean, default: true },
+      threshold: { type: Number, default: 0.5 },
+      requireLiveness: { type: Boolean, default: true },
+      requireLocation: { type: Boolean, default: false },
+      officeLocation: {
+        lat: { type: Number, default: 31.5204 }, // Default Lahore / MetaGlide HQ
+        lng: { type: Number, default: 74.3587 },
+      },
+      radiusMeters: { type: Number, default: 500 },
+    },
   },
   { timestamps: true }
 );

@@ -20,6 +20,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const roleRoutes = require('./routes/roleRoutes');
 
 // Initialize Express App
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/audit-logs', auditRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/roles', roleRoutes);
 
 const { healthCheck } = require('./controllers/authController');
 

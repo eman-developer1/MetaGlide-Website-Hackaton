@@ -18,7 +18,9 @@ import {
   Building,
   UserCheck,
   UserX,
+  ScanFace,
 } from 'lucide-react';
+import { FaceCheckIn } from '../../components/FaceCheckIn';
 import {
   BarChart,
   Bar,
@@ -59,6 +61,7 @@ export default function DashboardPage() {
   // Attendance Widget State (Employee)
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [faceCheckInOpen, setFaceCheckInOpen] = useState(false);
 
   useEffect(() => {
     const user = getStoredUser();
@@ -616,15 +619,27 @@ export default function DashboardPage() {
 
                 <div className="mt-6 space-y-2">
                   {!todayAttendance?.checkIn ? (
-                    <button
-                      type="button"
-                      disabled={checkingIn}
-                      onClick={handleCheckIn}
-                      className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#10AEE6] to-[#1DE0FF] text-[#12213F] font-extrabold text-sm hover:opacity-95 transition shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <UserCheck className="w-4 h-4" />
-                      <span>{checkingIn ? 'Checking In...' : 'Check In Now'}</span>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        disabled={checkingIn}
+                        onClick={() => setFaceCheckInOpen(true)}
+                        className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#10AEE6] to-[#1DE0FF] text-[#12213F] font-extrabold text-sm hover:opacity-95 transition shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <ScanFace className="w-4 h-4" />
+                        <span>Face Scan Check In</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={checkingIn}
+                        onClick={handleCheckIn}
+                        className="w-full py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition border border-white/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>{checkingIn ? 'Checking In...' : 'Manual Fallback Check In'}</span>
+                      </button>
+                    </>
                   ) : !todayAttendance?.checkOut ? (
                     <button
                       type="button"
@@ -823,6 +838,16 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Face Biometric Check-in Modal */}
+      <FaceCheckIn
+        isOpen={faceCheckInOpen}
+        onClose={() => setFaceCheckInOpen(false)}
+        onSuccess={(att) => {
+          setTodayAttendance(att);
+        }}
+      />
     </DashboardLayout>
   );
 }
+

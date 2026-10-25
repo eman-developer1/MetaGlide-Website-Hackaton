@@ -128,8 +128,15 @@ export const api = {
       return apiRequest(`/api/employees${q ? `?${q}` : ''}`);
     },
     get360: (id: string) => apiRequest(`/api/employees/${id}/360`),
+    // Regular employee creation (self‑service) – still points to the public endpoint
     create: (data: any) =>
       apiRequest('/api/employees', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    // Admin‑only employee creation – uses the new admin endpoint that requires permission
+    adminCreate: (data: any) =>
+      apiRequest('/api/employees/create', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -152,6 +159,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ rows }),
       }),
+    enrollFace: (id: string, data: { descriptors: number[][]; consentGiven: boolean }) =>
+      apiRequest(`/api/employees/${id}/face-enroll`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    deleteFaceData: (id: string) =>
+      apiRequest(`/api/employees/${id}/face-data`, {
+        method: 'DELETE',
+      }),
   },
 
   // Attendance
@@ -159,6 +175,11 @@ export const api = {
     checkIn: () =>
       apiRequest('/api/attendance/check-in', {
         method: 'POST',
+      }),
+    faceCheckIn: (data: { descriptor: number[]; livenessVerified: boolean; location?: any; notes?: string }) =>
+      apiRequest('/api/attendance/face-check-in', {
+        method: 'POST',
+        body: JSON.stringify(data),
       }),
     checkOut: () =>
       apiRequest('/api/attendance/check-out', {
@@ -251,6 +272,30 @@ export const api = {
       apiRequest('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(data),
+      }),
+  },
+
+  // Roles & Permissions
+  roles: {
+    list: () => apiRequest('/api/roles'),
+    getById: (id: string) => apiRequest(`/api/roles/${id}`),
+    create: (data: any) =>
+      apiRequest('/api/roles', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      apiRequest(`/api/roles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      apiRequest(`/api/roles/${id}`, {
+        method: 'DELETE',
+      }),
+    duplicate: (id: string) =>
+      apiRequest(`/api/roles/${id}/duplicate`, {
+        method: 'POST',
       }),
   },
 

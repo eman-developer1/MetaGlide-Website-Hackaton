@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   checkIn,
+  faceCheckIn,
   checkOut,
   getTodayStatus,
   getMyAttendance,
@@ -10,18 +11,19 @@ const {
   getPendingCorrections,
   reviewCorrection,
 } = require('../controllers/attendanceController');
-const { protect, authorizeRoles } = require('../middleware/authMiddleware');
+const { protect, authorizeRoles, checkPermission } = require('../middleware/authMiddleware');
 
 // Employee actions
 router.post('/check-in', protect, checkIn);
+router.post('/face-check-in', protect, faceCheckIn);
 router.post('/check-out', protect, checkOut);
 router.get('/today', protect, getTodayStatus);
 router.get('/my-history', protect, getMyAttendance);
 router.post('/corrections', protect, requestCorrection);
 
 // Admin & HR actions
-router.get('/daily-board', protect, authorizeRoles('Admin', 'HR'), getDailyBoard);
-router.get('/corrections', protect, authorizeRoles('Admin', 'HR'), getPendingCorrections);
-router.put('/corrections/:id', protect, authorizeRoles('Admin', 'HR'), reviewCorrection);
+router.get('/daily-board', protect, checkPermission('attendance', 'view'), getDailyBoard);
+router.get('/corrections', protect, checkPermission('attendance', 'approve'), getPendingCorrections);
+router.put('/corrections/:id', protect, checkPermission('attendance', 'approve'), reviewCorrection);
 
 module.exports = router;

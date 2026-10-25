@@ -9,7 +9,8 @@ const leaveSchema = new mongoose.Schema(
     },
     userName: { type: String, default: '' },
     userEmail: { type: String, default: '' },
-    department: { type: String, default: 'General' },
+    department: { type: String, default: null },
+    companyId: { type: String, default: 'default-company', index: true },
     type: {
       type: String,
       enum: ['Casual', 'Sick', 'Annual', 'Unpaid'],

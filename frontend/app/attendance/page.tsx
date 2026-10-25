@@ -13,10 +13,12 @@ import {
   Plus,
   ArrowRight,
   Filter,
+  ScanFace,
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { DataTable, Column } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
+import { FaceCheckIn } from '../../components/FaceCheckIn';
 import { useToast } from '../../components/Toast';
 import { api, getStoredUser } from '../../lib/api';
 
@@ -36,6 +38,7 @@ export default function AttendancePage() {
   // Corrections State
   const [corrections, setCorrections] = useState<any[]>([]);
   const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
+  const [faceCheckInOpen, setFaceCheckInOpen] = useState(false);
   const [correctionForm, setCorrectionForm] = useState({
     date: '',
     requestedCheckIn: '09:00',
@@ -177,6 +180,29 @@ export default function AttendancePage() {
       render: (row) => `${row.workHours || 0} hrs`,
     },
     {
+      key: 'method',
+      header: 'Method',
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          {row.method === 'face' ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400">
+              <ScanFace className="w-3.5 h-3.5" />
+              <span>Face Scan</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-400">
+              <span>Manual</span>
+            </span>
+          )}
+          {row.suspiciousAttempts > 0 && (
+            <span className="text-[10px] text-amber-400 font-bold" title="Suspicious scan attempts">
+              ⚠️ {row.suspiciousAttempts}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
       key: 'status',
       header: 'Status',
       render: (row) => {
@@ -292,14 +318,25 @@ export default function AttendancePage() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setCorrectionModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border)] bg-[var(--card)] hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <Clock className="w-4 h-4 text-[#10AEE6]" />
-            <span>Request Correction</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFaceCheckInOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-[#10AEE6] to-[#1DE0FF] text-[#12213F] shadow-md hover:opacity-95 transition"
+            >
+              <ScanFace className="w-4 h-4" />
+              <span>Face Check-in</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCorrectionModalOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-[var(--border)] bg-[var(--card)] hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            >
+              <Clock className="w-4 h-4 text-[#10AEE6]" />
+              <span>Request Correction</span>
+            </button>
+          </div>
         </div>
 
         {/* ================= 1. DAILY BOARD TAB (Admin & HR) ================= */}
@@ -521,6 +558,17 @@ export default function AttendancePage() {
             </div>
           </form>
         </Modal>
+
+        {/* Face Biometric Check-in Modal */}
+        <FaceCheckIn
+          isOpen={faceCheckInOpen}
+          onClose={() => setFaceCheckInOpen(false)}
+          onSuccess={() => {
+            fetchMyHistory();
+            fetchDailyBoard();
+          }}
+          onRequestCorrection={() => setCorrectionModalOpen(true)}
+        />
       </div>
     </DashboardLayout>
   );

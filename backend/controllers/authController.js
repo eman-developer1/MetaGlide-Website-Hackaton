@@ -19,10 +19,6 @@ const registerUser = async (req, res) => {
       name,
       email,
       password,
-      role,
-      department,
-      designation,
-      salary,
       phone,
     } = req.body;
 
@@ -52,12 +48,9 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Check existing count - if this is the first user ever, assign 'Admin'
+    // First user auto-becomes Admin (company owner)
     const allUsers = await dataStore.findUsers();
-    let assignedRole = role || 'Employee';
-    if (allUsers.length === 0) {
-      assignedRole = 'Admin';
-    }
+    const assignedRole = allUsers.length === 0 ? 'Admin' : 'Employee';
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -71,9 +64,8 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       role: assignedRole,
       status: 'Active',
-      department: department || 'General',
-      designation: designation || (assignedRole === 'Admin' ? 'Executive Director' : assignedRole === 'HR' ? 'HR Specialist' : 'Associate'),
-      salary: Number(salary) || (assignedRole === 'Admin' ? 120000 : assignedRole === 'HR' ? 85000 : 60000),
+      // department, designation, salary are NOT set at signup
+      // They will be configured by the Admin from the Roles & Team portal
       phone: phone || '',
       employeeId,
       joinDate: new Date(),
@@ -103,9 +95,9 @@ const registerUser = async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        department: newUser.department,
-        designation: newUser.designation,
-        salary: newUser.salary,
+        department: newUser.department || null,
+        designation: newUser.designation || null,
+        salary: newUser.salary || null,
         employeeId: newUser.employeeId,
         leaveBalance: newUser.leaveBalance,
         createdAt: newUser.createdAt,
@@ -190,9 +182,10 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role || 'Employee',
-        department: user.department || 'General',
-        designation: user.designation || 'Staff',
-        salary: user.salary,
+        companyId: user.companyId || 'default-company',
+        department: user.department || null,
+        designation: user.designation || null,
+        salary: user.salary !== undefined ? user.salary : null,
         employeeId: user.employeeId,
         leaveBalance: user.leaveBalance || { casual: 10, sick: 10, annual: 14 },
         mustChangePassword: user.mustChangePassword || false,
@@ -222,9 +215,10 @@ const getMe = async (req, res) => {
         name: req.user.name,
         email: req.user.email,
         role: req.user.role || 'Employee',
-        department: req.user.department || 'General',
-        designation: req.user.designation || 'Staff',
-        salary: req.user.salary,
+        companyId: req.user.companyId || 'default-company',
+        department: req.user.department || null,
+        designation: req.user.designation || null,
+        salary: req.user.salary !== undefined ? req.user.salary : null,
         employeeId: req.user.employeeId,
         phone: req.user.phone,
         leaveBalance: req.user.leaveBalance,

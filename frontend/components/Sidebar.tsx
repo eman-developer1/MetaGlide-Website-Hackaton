@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   LayoutDashboard,
+  ShieldCheck,
   Users,
   CalendarCheck,
   CalendarDays,
@@ -49,6 +50,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       href: '/dashboard',
       icon: LayoutDashboard,
       roles: ['Admin', 'HR', 'Employee'],
+    },
+    {
+      title: 'Roles & Team',
+      href: '/admin/roles-team',
+      icon: ShieldCheck,
+      roles: ['Admin'],
     },
     {
       title: 'Employees',

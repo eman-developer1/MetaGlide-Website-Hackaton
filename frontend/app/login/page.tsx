@@ -13,10 +13,8 @@ import {
   EyeOff,
   Sparkles,
   ShieldCheck,
-  Building2,
-  Briefcase,
-  DollarSign,
-  Phone,
+} from 'lucide-react';
+
 import { api, setToken, setStoredUser, getToken } from '../../lib/api';
 import { ToastProvider, useToast } from '../../components/Toast';
 import { Modal } from '../../components/Modal';
@@ -39,17 +37,12 @@ function LoginFormContent() {
     remember: true,
   });
 
-  // Signup Form State
+  // Signup Form State (company owner registration — no department/designation/salary)
   const [signupForm, setSignupForm] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'Employee',
-    department: 'Engineering',
-    designation: 'Staff Associate',
-    salary: 60000,
-    phone: '',
     agreed: false,
   });
 
@@ -122,11 +115,6 @@ function LoginFormContent() {
         name: signupForm.name,
         email: signupForm.email,
         password: signupForm.password,
-        role: signupForm.role,
-        department: signupForm.department,
-        designation: signupForm.designation,
-        salary: signupForm.salary,
-        phone: signupForm.phone,
       });
 
       if (res.success && res.token) {
@@ -342,20 +330,20 @@ function LoginFormContent() {
 
           {/* ================= SIGN UP FORM ================= */}
           {activeTab === 'signup' && (
-            <form onSubmit={handleSignupSubmit} className="space-y-3.5">
+            <form onSubmit={handleSignupSubmit} className="space-y-4">
               <div>
                 <h3 className="text-xl font-extrabold text-[var(--navy)] dark:text-white">
                   Create Your Account
                 </h3>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  Register with your role to enter the HCM platform.
+                  Register your company to get started. You can add team members from the Admin portal after setup.
                 </p>
               </div>
 
-              {/* Full Name */}
+              {/* Company Name / Full Name */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                  Full Name
+                  Company Name
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
@@ -364,16 +352,16 @@ function LoginFormContent() {
                     required
                     value={signupForm.name}
                     onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
-                    placeholder="e.g. Alex Morgan"
-                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
+                    placeholder="e.g. MetaGlide Marketing"
+                    className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
                   />
                 </div>
               </div>
 
-              {/* Email */}
+              {/* Company Email */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                  Email Address
+                  Company Email
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
@@ -382,71 +370,8 @@ function LoginFormContent() {
                     required
                     value={signupForm.email}
                     onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                    placeholder="alex@metaglide.com"
-                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
-                  />
-                </div>
-              </div>
-
-              {/* Role & Department */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                    System Role
-                  </label>
-                  <select
-                    value={signupForm.role}
-                    onChange={(e) => setSignupForm({ ...signupForm, role: e.target.value })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
-                  >
-                    <option value="Employee">Employee</option>
-                    <option value="HR">HR Specialist</option>
-                    <option value="Admin">Admin</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                    Department
-                  </label>
-                  <select
-                    value={signupForm.department}
-                    onChange={(e) => setSignupForm({ ...signupForm, department: e.target.value })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
-                  >
-                    <option value="Engineering">Engineering</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Product Design">Product Design</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Designation & Salary */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                    Designation
-                  </label>
-                  <input
-                    type="text"
-                    value={signupForm.designation}
-                    onChange={(e) => setSignupForm({ ...signupForm, designation: e.target.value })}
-                    placeholder="Job title"
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                    Base Salary ($)
-                  </label>
-                  <input
-                    type="number"
-                    value={signupForm.salary}
-                    onChange={(e) => setSignupForm({ ...signupForm, salary: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
+                    placeholder="admin@yourcompany.com"
+                    className="w-full pl-9 pr-3 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
                   />
                 </div>
               </div>
@@ -463,12 +388,12 @@ function LoginFormContent() {
                     value={signupForm.password}
                     onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
                     placeholder="Min 6 chars"
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
+                    className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text)] mb-1">
-                    Confirm
+                    Confirm Password
                   </label>
                   <input
                     type="password"
@@ -476,7 +401,7 @@ function LoginFormContent() {
                     value={signupForm.confirmPassword}
                     onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
+                    className="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0A66C2] transition"
                   />
                 </div>
               </div>

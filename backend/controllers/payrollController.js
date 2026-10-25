@@ -36,7 +36,7 @@ const generateDraftPayroll = async (req, res) => {
 
     let totalPayrollCost = 0;
     const records = employees.map((emp) => {
-      const basic = Number(emp.salary) || 60000;
+      const basic = emp.salary !== null && emp.salary !== undefined ? Number(emp.salary) : 0;
       const housing = Math.round(basic * 0.15);
       const transport = Math.round(basic * 0.10);
       const medical = Math.round(basic * 0.05);
@@ -54,8 +54,8 @@ const generateDraftPayroll = async (req, res) => {
         employeeId: emp.employeeId || 'MG-000',
         name: emp.name,
         email: emp.email,
-        department: emp.department || 'General',
-        designation: emp.designation || 'Staff',
+        department: emp.department || null,
+        designation: emp.designation || null,
         basicSalary: basic,
         allowances: {
           housing,
@@ -80,6 +80,7 @@ const generateDraftPayroll = async (req, res) => {
       month: m,
       year: y,
       title,
+      companyId: req.user?.companyId || 'default-company',
       status: 'Draft',
       totalCost: totalPayrollCost,
       totalEmployees: records.length,

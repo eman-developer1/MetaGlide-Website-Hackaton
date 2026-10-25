@@ -43,10 +43,12 @@ const protect = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role || 'Employee',
+        companyId: user.companyId || 'default-company',
+        customRoleId: user.customRoleId || null,
         status: user.status || 'Active',
-        department: user.department || 'General',
-        designation: user.designation || 'Staff',
-        salary: user.salary || 60000,
+        department: user.department || null,
+        designation: user.designation || null,
+        salary: user.salary !== undefined ? user.salary : null,
         employeeId: user.employeeId || '',
         phone: user.phone || '',
         leaveBalance: user.leaveBalance || { casual: 10, sick: 10, annual: 14 },
@@ -84,8 +86,67 @@ const authorizeRoles = (...allowedRoles) => {
   };
 };
 
+// Dynamic Permission Matrix Check Middleware
+// module: 'employees' | 'attendance' | 'leave' | 'payroll' | 'settings' | 'roles'
+// action: 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'export'
+const checkPermission = (moduleName, action = 'view') => {
+  return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authorized' });
+    }
+
+    // Admin always has full access
+    if (req.user.role === 'Admin') {
+      return next();
+    }
+
+    try {
+      const dataStore = require('../services/dataStore');
+      // Look up role by customRoleId or name
+      let role = null;
+      if (req.user.customRoleId) {
+        role = await dataStore.findRoleById?.(req.user.customRoleId);
+      }
+      if (!role) {
+        role = await dataStore.findRoleByName?.(req.user.role, req.user.companyId);
+      }
+
+      if (role && role.permissions) {
+        const modPerm = role.permissions.find(
+          (p) => p.module?.toLowerCase() === moduleName?.toLowerCase()
+        );
+        if (modPerm && modPerm.actions && modPerm.actions[action]) {
+          req.permissionScope = modPerm.scope || 'Company';
+          return next();
+        }
+      }
+
+      // Default fallback for HR role if no custom role matrix set
+      if (req.user.role === 'HR') {
+        // HR has access to employees, attendance, leave, payroll (except roles/settings admin-only)
+        if (['employees', 'attendance', 'leave', 'payroll'].includes(moduleName.toLowerCase())) {
+          return next();
+        }
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: You do not have permission to ${action} ${moduleName}.`,
+      });
+    } catch (err) {
+      console.error('[checkPermission Error]:', err);
+      // Fallback to authorizeRoles
+      if (req.user.role === 'Admin' || req.user.role === 'HR') {
+        return next();
+      }
+      return res.status(403).json({ success: false, message: 'Permission check failed' });
+    }
+  };
+};
+
 module.exports = {
   protect,
   authorizeRoles,
+  checkPermission,
   setFallbackUsersRef,
 };
