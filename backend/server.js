@@ -36,6 +36,11 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
+
+app.get('/', (req, res) => {
+  res.send('MetaGlide HCM Backend is Running Successfully!');
+});
+
 // Permissive CORS for smooth deployment & Vercel connectivity
 app.use(
   cors({
