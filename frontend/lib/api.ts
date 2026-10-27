@@ -3,9 +3,12 @@
  * Reads NEXT_PUBLIC_API_URL and automatically injects JWT Bearer tokens
  */
 
-const getApiBase = () => {
-  const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-  return url.replace(/\/+$/, '');
+const getApiBase = (): string => {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (rawUrl && rawUrl.trim() !== '') {
+    return rawUrl.trim().replace(/\/+$/, '');
+  }
+  return 'http://localhost:5000';
 };
 
 export const API_BASE = getApiBase();
@@ -70,6 +73,7 @@ export async function apiRequest<T = any>(
 
   try {
     const res = await fetch(url, {
+      credentials: options.credentials || 'include',
       ...options,
       headers,
     });

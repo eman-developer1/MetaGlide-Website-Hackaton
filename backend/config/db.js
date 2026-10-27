@@ -7,7 +7,10 @@ const connectDB = async () => {
 
   try {
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of hanging
+      serverSelectionTimeoutMS: 8000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     });
 
     isConnected = true;
@@ -15,7 +18,7 @@ const connectDB = async () => {
     console.log(`[MongoDB] Database name: ${conn.connection.name}`);
   } catch (error) {
     isConnected = false;
-    console.error(`\x1b[33m[MongoDB Warning]\x1b[0m Could not connect to MongoDB at ${mongoURI}`);
+    console.error(`\x1b[33m[MongoDB Warning]\x1b[0m Could not connect to MongoDB at ${mongoURI}: ${error.message}`);
     console.error(`\x1b[36m[Notice]\x1b[0m The backend will run with graceful in-memory fallback enabled.`);
     console.error(`\x1b[36m[Tip]\x1b[0m To use your actual MongoDB database:`);
     console.error(`  1. Ensure MongoDB service is running locally ('mongod' or Windows Services)`);

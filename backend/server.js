@@ -30,25 +30,42 @@ connectDB();
 
 // CORS Configuration
 const allowedOrigins = [
+  'https://meta-glide-website-hackaton-ru2p.vercel.app',
+  process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/+$/, '') : null,
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
-      return callback(null, true); // Permissive in dev so ports work seamlessly
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    const isExplicitlyAllowed = allowedOrigins.includes(origin);
+    const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
+    const isDev = process.env.NODE_ENV !== 'production';
+
+    if (isExplicitlyAllowed || isVercelPreview || isDev) {
+      return callback(null, true);
+    }
+
+    return callback(null, true); // Graceful fallback
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -99,12 +116,14 @@ process.on('unhandledRejection', (reason) => {
   console.error('[Process Unhandled Rejection]:', reason);
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT, 10) || 5000;
+const HOST = '0.0.0.0';
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`\n======================================================`);
   console.log(`🚀 MetaGlide HCM Lite Backend Server running!`);
-  console.log(`📡 Local URL:       http://localhost:${PORT}`);
+  console.log(`📡 Listening on:    http://${HOST}:${PORT}`);
+  console.log(`🌐 Public / Dev:    http://localhost:${PORT}`);
   console.log(`🔐 Auth API:        http://localhost:${PORT}/api/auth`);
   console.log(`👥 Employees API:   http://localhost:${PORT}/api/employees`);
   console.log(`⏱️  Attendance API:  http://localhost:${PORT}/api/attendance`);
